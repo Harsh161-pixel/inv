@@ -66,25 +66,10 @@ model StockLevel {
   @@unique([productId, warehouseId])
 }
 
-enum DocumentType {
-  RECEIPT
-  DELIVERY
-  INTERNAL_TRANSFER
-  ADJUSTMENT
-}
-
-enum DocumentStatus {
-  DRAFT
-  WAITING
-  READY
-  DONE
-  CANCELED
-}
-
 model Document {
   id            String         @id @default(cuid())
-  type          DocumentType
-  status        DocumentStatus @default(DRAFT)
+  type          String         // RECEIPT | DELIVERY | INTERNAL_TRANSFER | ADJUSTMENT
+  status        String         @default("DRAFT") // DRAFT | WAITING | READY | DONE | CANCELED
   reference     String?        // optional PO/DO number
   fromWarehouseId String?       // for delivery, transfer
   toWarehouseId   String?       // for receipt, transfer

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { COOKIE_NAME, verifyToken } from "@/lib/auth";
+import { DOCUMENT_TYPES } from "@/lib/constants";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
@@ -11,7 +12,7 @@ const lineSchema = z.object({
 });
 
 const createSchema = z.object({
-  type: z.enum(["RECEIPT", "DELIVERY", "INTERNAL_TRANSFER", "ADJUSTMENT"]),
+  type: z.enum(DOCUMENT_TYPES),
   reference: z.string().optional(),
   fromWarehouseId: z.string().optional().nullable(),
   toWarehouseId: z.string().optional().nullable(),
@@ -38,8 +39,8 @@ export async function GET(req: Request) {
   const status = searchParams.get("status");
   const documents = await prisma.document.findMany({
     where: {
-      ...(type ? { type: type as "RECEIPT" | "DELIVERY" | "INTERNAL_TRANSFER" | "ADJUSTMENT" } : {}),
-      ...(status ? { status: status as "DRAFT" | "WAITING" | "READY" | "DONE" | "CANCELED" } : {}),
+      ...(type ? { type } : {}),
+      ...(status ? { status } : {}),
     },
     include: {
       lines: { include: { product: { include: { category: true } } } },

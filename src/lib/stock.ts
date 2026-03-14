@@ -1,5 +1,4 @@
 import { prisma } from "./prisma";
-import type { DocumentType } from "@prisma/client";
 
 export async function applyDocumentStock(
   documentId: string,
