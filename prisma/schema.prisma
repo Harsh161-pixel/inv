@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  otpCode       String?
+  otpExpiresAt  DateTime?
+  moves         StockMove[]
+  documents     Document[] @relation("DocumentUser")
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  products    Product[]
+}
+
+model Product {
+  id              String    @id @default(cuid())
+  name            String
+  sku             String    @unique
+  categoryId      String
+  category        ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  unitOfMeasure   String    // kg, pcs, liters, etc.
+  reorderThreshold Int?     // alert when stock < this
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  stockLevels     StockLevel[]
+  documentLines   DocumentLine[]
+  moves           StockMove[]
+}
+
+model Warehouse {
+  id          String    @id @default(cuid())
+  name        String
+  code        String    @unique
+  address     String?
+  isDefault   Boolean   @default(false)
+  stockLevels StockLevel[]
+  movesFrom   StockMove[] @relation("FromLocation")
+  movesTo     StockMove[] @relation("ToLocation")
+  documentsFrom Document[] @relation("DocFromWarehouse")
+  documentsTo   Document[] @relation("DocToWarehouse")
+}
+
+model StockLevel {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  quantity    Float    @default(0)
+  updatedAt   DateTime @updatedAt
+  @@unique([productId, warehouseId])
+}
+
+enum DocumentType {
+  RECEIPT
+  DELIVERY
+  INTERNAL_TRANSFER
+  ADJUSTMENT
+}
+
+enum DocumentStatus {
+  DRAFT
+  WAITING
+  READY
+  DONE
+  CANCELED
+}
+
+model Document {
+  id            String         @id @default(cuid())
+  type          DocumentType
+  status        DocumentStatus @default(DRAFT)
+  reference     String?        // optional PO/DO number
+  fromWarehouseId String?       // for delivery, transfer
+  toWarehouseId   String?       // for receipt, transfer
+  fromWarehouse   Warehouse?   @relation("DocFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouse     Warehouse?   @relation("DocToWarehouse", fields: [toWarehouseId], references: [id])
+  createdById   String?
+  createdBy     User?          @relation("DocumentUser", fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lines         DocumentLine[]
+  moves         StockMove[]
+}
+
+model DocumentLine {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity   Float
+  receivedQty Float?  // for receipts: can receive less than ordered
+}
+
+model StockMove {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fromWarehouseId String?
+  toWarehouseId   String?
+  fromWarehouse   Warehouse? @relation("FromLocation", fields: [fromWarehouseId], references: [id])
+  toWarehouse     Warehouse? @relation("ToLocation", fields: [toWarehouseId], references: [id])
+  quantity    Float    // positive = in, negative = out (for adjustments we use one direction)
+  quantityDelta Float   // + or - for ledger display
+  documentId   String?
+  document     Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  reason       String?  // e.g. "3 kg damaged"
+  createdById  String?
+  createdBy    User?    @relation(fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+}
